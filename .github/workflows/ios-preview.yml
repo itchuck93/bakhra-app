@@ -1,0 +1,49 @@
+name: iPhone preview (Expo Go)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+concurrency:
+  group: expo-preview
+  cancel-in-progress: true
+
+jobs:
+  serve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm install -g @expo/ngrok@^4.1.0
+      - name: Start app server (stays online 60 minutes)
+        env:
+          EXPO_NO_TELEMETRY: 1
+        run: |
+          nohup npx expo start --tunnel > expo.log 2>&1 &
+          HOST=""
+          for i in $(seq 1 60); do
+            HOST=$(curl -s -H "expo-platform: ios" http://localhost:8081 | grep -o '"hostUri":"[^"]*"' | head -1 | cut -d'"' -f4)
+            case "$HOST" in *exp.direct*) break;; esac
+            sleep 5
+          done
+          cat expo.log
+          if [ -z "$HOST" ]; then echo "Server did not start"; exit 1; fi
+          URL="exp://$HOST"
+          echo "OPEN IN EXPO GO: $URL"
+          {
+            echo "## Open BAKHRA on your iPhone"
+            echo "Scan with the iPhone camera (Expo Go installed), or paste into Expo Go:"
+            echo ""
+            echo "\`$URL\`"
+            echo ""
+            echo "![QR](https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=$URL)"
+            echo ""
+            echo "Online for 60 minutes. Re-run this workflow to start again."
+          } >> "$GITHUB_STEP_SUMMARY"
+          npx -y qrcode-terminal "$URL" || true
+          sleep 3600
