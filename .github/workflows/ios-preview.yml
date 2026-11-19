@@ -20,7 +20,7 @@ jobs:
           node-version: 22
       - run: npm ci
       - run: npm install -g @expo/ngrok@^4.1.0
-      - name: Start app server (stays online 60 minutes)
+      - name: Start app server and show QR code
         env:
           EXPO_NO_TELEMETRY: 1
         run: |
@@ -46,4 +46,5 @@ jobs:
             echo "Online for 60 minutes. Re-run this workflow to start again."
           } >> "$GITHUB_STEP_SUMMARY"
           npx -y qrcode-terminal "$URL" || true
-          sleep 3600
+      - name: Keep app online for 60 minutes
+        run: sleep 3600
